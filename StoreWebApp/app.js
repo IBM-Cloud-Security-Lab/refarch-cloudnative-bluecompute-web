@@ -40,14 +40,28 @@ const LANDING_PAGE_URL = "/login";
 app.use(passport.initialize());
 app.use(passport.session());
 
-const config = {
- "clientId": "<clientId>",
- "oauthServerUrl": "<oauthServerUrl>",
- "profilesUrl": "<profilesUrl>",
- "secret": "<secret>",
- "tenantId": "<tenantId>",
- "redirectUri": "<your app url>" + CALLBACK_URL
-};
+var cfEnv = require("cfenv");
+var AppIDCredentials, bluemixAppRoute;
+
+
+try {
+	AppIDCredentials = cfEnv.getAppEnv().services.AdvancedMobileAccess[0].credentials;
+	bluemixAppRoute = cfEnv.getAppEnv().url;
+	console.log('AppIDCredentials = ' + JSON.stringify(AppIDCredentials));
+	console.log('bluemixAppRoute = ' + JSON.stringify(bluemixAppRoute));
+} catch(err) {
+	throw ('This sample should not work locally, please push the sample to Bluemix.');
+}
+
+var config = {};
+config.oauthServerUrl = AppIDCredentials.oauthServerUrl;
+config.profilesUrl = AppIDCredentials.profilesUrl;
+config.clientId = AppIDCredentials.clientId;
+config.tenantId = AppIDCredentials.tenantId;
+config.secret = AppIDCredentials.secret;
+config.redirectUri = bluemixAppRoute + CALLBACK_URL;
+
+
 
 if (process.env.VCAP_SERVICES){
   passport.use(new WebAppStrategy());
@@ -57,13 +71,16 @@ if (process.env.VCAP_SERVICES){
 
 passport.serializeUser(function(user, cb) { cb(null, user); });
 passport.deserializeUser(function(obj, cb) { cb(null, obj); });
+
 app.get(LOGIN_URL, passport.authenticate(WebAppStrategy.STRATEGY_NAME, {
   forceLogin: true
 }));
 app.get(CALLBACK_URL, passport.authenticate(WebAppStrategy.STRATEGY_NAME));
+
 app.get("/protected", passport.authenticate(WebAppStrategy.STRATEGY_NAME), function(req, res){
   res.json(req.user);
 });
+
 app.use('/inventory', passport.authenticate(WebAppStrategy.STRATEGY_NAME));
 // AppID instrumentation end
 
